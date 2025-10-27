@@ -1,0 +1,85 @@
+import pyautogui
+import pandas as pd
+df = pd.DataFrame(columns=['num', 'top', 'left', 'width', 'height'])
+img_path = 'project/imgs/' #이미지 필요. 1~9까지의 이미지 파일이 있어야 함.
+
+ll = 0
+for i in range(1, 9+1):
+    positions = pyautogui.locateAllOnScreen(f'{img_path}{i}.png', confidence=0.90)
+    for pos in positions:
+        new_row = {'num':i, 'top':pos.top, 'left':pos.left, 
+                   'width':pos.width, 'height':pos.height}
+        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+        ll += 1
+
+#좌표 170개로 나누기(클러스터링)
+import os
+os.environ["LOKY_MAX_CPU_COUNT"] = "4"
+os.environ["OMP_NUM_THREADS"] = "2"
+from sklearn.cluster import KMeans
+kmeans = KMeans(n_clusters=170)
+kmeans.fit(df[['top', 'left']])
+df['cluster'] = kmeans.labels_
+df = df.groupby(by='cluster').mean()
+
+#가로 17줄 세로10줄 x,y로 나누기
+kmeans = KMeans(n_clusters=17)
+kmeans.fit(df[['left']])
+df['x_cls'] = kmeans.labels_
+kmeans = KMeans(n_clusters=10)
+kmeans.fit(df[['top']])
+df['y_cls'] = kmeans.labels_
+
+for x_idx in range(17):
+    mean_value = df.loc[df['x_cls'] == x_idx, 'left'].mean()  
+    df.loc[df['x_cls'] == x_idx, 'left'] = mean_value  
+for y_idx in range(10):
+    mean_value = df.loc[df['y_cls'] == y_idx, 'top'].mean()  
+    df.loc[df['y_cls'] == y_idx, 'top'] = mean_value  
+
+# 그리드 정렬
+import numpy as np
+df = df.sort_values(by=['top', 'left']).reset_index(drop=True)
+num1d = np.array(df['num'].values.tolist(), dtype=int)
+num2d = num1d.reshape(10, 17)
+
+import pyautogui
+import keyboard
+
+# xy 좌표 간격
+x_positions = df['left'].unique()
+y_positions = df['top'].unique()
+
+# 마우스 위치 살짝 위로(게임 판정 이슈)
+x_gap = np.mean(np.diff(x_positions))
+y_gap = np.mean(np.diff(y_positions))
+xmouse = x_positions - 0.25 * x_gap
+ymouse = y_positions - 0.25 * y_gap
+
+
+# 마우스 이동 로직
+def mouse_move(x_idx, y_idx, width_span, height_span, duration):
+    pyautogui.moveTo(xmouse[x_idx], ymouse[y_idx], duration=duration)
+    pyautogui.mouseDown()
+    pyautogui.moveTo(xmouse[x_idx] + (width_span+1)*x_gap, ymouse[y_idx] + (height_span+1)*y_gap, duration=duration)
+    pyautogui.moveTo(xmouse[x_idx] + (width_span+1)*x_gap, ymouse[y_idx] + (height_span+1)*y_gap, duration=duration)
+    pyautogui.mouseUp()
+
+duration = 0.01
+for _ in range(10):
+    for y_idx in range(10):
+        for x_idx in range(17):
+
+        # q 눌러서 중지(가끔 멋대로 튑니다)
+            if keyboard.is_pressed("q"):  
+                break
+
+                # 좌표 조합(가로, 세로, 대각선까지)
+            width_max, height_max = 17 - x_idx, 10 - y_idx
+            for height_span in range(height_max):
+                for width_span in range(width_max):
+
+                # 합이 10이면 드래그
+                    if np.sum(num2d[y_idx: y_idx + height_span+1, x_idx: x_idx + width_span+1]) == 10:
+                        num2d[y_idx: y_idx + height_span+1, x_idx: x_idx + width_span+1] = 0
+                        mouse_move(x_idx, y_idx, width_span, height_span, duration)
