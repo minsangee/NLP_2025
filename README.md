@@ -19,6 +19,6 @@ digital humanities
 
 [학과 소개 링크]: https://www.hannam.ac.kr/kor/educate/educate_0103_08.html
 
-=
 
-Project01: 과거 유행했던 플래시 게임 메크로 제작하기
+
+#Project01: 과거 유행했던 플래시 게임 메크로 제작하기
