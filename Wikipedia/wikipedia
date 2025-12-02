@@ -1,1 +1,17 @@
+import pandas as pd
 
+# ▶️ Change this to your txt file name 🍎🍎🍎🍎🍎
+txt_file = "/content/NLP_2025/Wikipedia/wiki_corpus_delimited_group2_CLEANED_Edit.txt"
+
+# Read the text file
+with open(txt_file, "r", encoding="utf-8") as f:
+    text = f.read()
+
+# Create a DataFrame
+df = pd.DataFrame({"Text": [text]})
+
+# Save as CSV (same name but .csv extension)
+csv_file = txt_file.replace(".txt", ".csv")
+df.to_csv(csv_file, index=False, encoding="utf-8")
+
+print(f"Created CSV file: {csv_file}")
